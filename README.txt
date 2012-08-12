@@ -1,1 +1,1 @@
-TEST readme file
+This repository includes some core source files of the PyC project, part of my MSc Thesis.
