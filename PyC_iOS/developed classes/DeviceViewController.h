@@ -7,7 +7,6 @@
 //
 #import <Foundation/Foundation.h>
 #import "Device.h"
-#import "VitaldetailsViewController.h"
 
 @interface DeviceViewController : UIViewController <CoreLocationControllerDelegate, UITableViewDataSource, UITableViewDelegate, busyIndicatorDelegate>
 {
@@ -17,7 +16,7 @@
     UITableView *mytable;
     UIActivityIndicatorView *myindicator;
 }
-@property (nonatomic, retain) IBOutlet UITableView *mytable;
+@property (assign) IBOutlet UITableView *mytable;
 @property (nonatomic, retain) NSArray *listData;
 @property (nonatomic, retain) IBOutletCollection(UILabel) NSArray *labelsArray;
 -(IBAction)logBut;

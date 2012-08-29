@@ -4,7 +4,12 @@
 #import "XMLparserViewController.h"
 #import "DeviceViewController.h"
 #import "LocationViewController.h"
+#import "FilesViewController.h"
 
+#import "KeychainWrapper.h"
+#import "Constants.h"
+
+#import "CryptoHelper.h"
 
 @class Reachability;
 
@@ -14,8 +19,9 @@
     Reachability *internetReachable;
     bool connectivity;
     NSArray *viewControllers;
+    IBOutlet UITabBarController *tabBarController;
 }
-
+@property (nonatomic) BOOL pinValidated;
 @property (strong, nonatomic) IBOutlet UIWindow *window;
 @property (assign, nonatomic) bool connectivity;
 

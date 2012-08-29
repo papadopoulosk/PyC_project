@@ -10,7 +10,7 @@
 #import "QuartzCore/QuartzCore.h"
 #import "Device.h"
 
-@interface XMLparserViewController : UIViewController <NSXMLParserDelegate, busyIndicatorDelegate>
+@interface XMLparserViewController : UIViewController <NSXMLParserDelegate, busyIndicatorDelegate,UITableViewDataSource, UITableViewDelegate>
 {
     //NSXMLParser *myparser;
     UITextView *textView;
@@ -23,11 +23,15 @@
     int errors,counter;
     UIActivityIndicatorView *myindicator;
     UIButton *updatePolicyButton;
+    NSMutableArray *sectionTitles; // table that holds the policy in array format in order to display the table on view
+    NSMutableDictionary *sectionContent;//
     //NSURL *xmlUrl;
+    UITableView *mytable;
 }
 @property (assign) IBOutlet UITextView *textView;
 @property (assign) IBOutlet UILabel *mylabel;
 @property (assign) IBOutlet UIButton *updatePolicyButton;
+@property (assign) IBOutlet UITableView *mytable;
 
 -(IBAction)updatePolicy;
 -(void) newPolicy:(NSString *)newDoc;

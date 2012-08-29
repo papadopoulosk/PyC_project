@@ -18,5 +18,5 @@
     Device *myphone;
 }
 @property (weak, nonatomic) IBOutlet MKMapView *_mapView;
--(void) updateRegion;
+-(void) updateRegion:(NSDictionary *)safeZone;
 @end

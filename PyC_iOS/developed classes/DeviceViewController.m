@@ -41,9 +41,6 @@
     int i=0;
     for (UILabel *lab in labelsArray)
         [lab setHidden:TRUE];
-    //for (id key in [d allKeys]) {
-    //    NSLog(@"%@ - %@",key,[d objectForKey:key]);
-    //}
     
     for (id key in [myphone getInfo])
     {
@@ -76,16 +73,14 @@
 }
 -(IBAction)uploadLog
 {
-  //  [myphone uploadFiles];
-    //[myphone uploadLog];
-    [myphone restoreFiles];
-    
+    [myphone uploadFiles];
+  //  [myphone uploadLog];    
 }
 
 -(void) locationUpdate:(CLLocation *)location
 {
-    [self viewDidLoad];
-    mytable.hidden=true;
+    //[self viewDidLoad];
+    [mytable reloadData];
 }
 -(void) locationError:(NSError *)error
 {
@@ -94,16 +89,13 @@
 -(NSInteger) tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section 
 {
     return (NSInteger) [[[myphone getInfo] allKeys] count];
-    //return [self.listData count];
+}
+-(NSInteger) numberOfSectionsInTableView:(UITableView *) tableView
+{
+    return 1;
 }
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath 
 {
-    //Create instance of a UITableViewCell with default appearance
-    //UITableViewCell *cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"UITableViewCell"] autorelease];
-    //set the text on the cell with the description of the item
-    //[[cell textLabel] setText:@"asd"];
-    //return cell;
-    
     static NSString *SimpleTableIdentifier = @"SimpleTableIdentifier";
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:SimpleTableIdentifier];
     if (cell == nil) {

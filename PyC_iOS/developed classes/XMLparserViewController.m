@@ -5,7 +5,7 @@
 @end
 
 @implementation XMLparserViewController
-@synthesize textView, mylabel, updatePolicyButton;
+@synthesize textView, mylabel, updatePolicyButton, mytable;
 - (id)init
 {
     [depth initWithInteger:0];
@@ -14,13 +14,15 @@
     filePath = [NSString stringWithString:[rootPath stringByAppendingString:@"/files/"]];
     dictPath = [NSString stringWithString:[rootPath stringByAppendingString:@"/policy/archive.arc"]];
    
+    sectionTitles = [[NSMutableArray alloc] init];
+    sectionContent = [[NSMutableDictionary alloc] init];
     [[Device initialize] setXmlviewDelegate:self];
     [dictPath retain];
     [rootPath retain];
     [filePath retain];
     [dictPath2 retain];
-   
     errors = 0;
+    
     self = [super initWithNibName:nil bundle:Nil];
     if (self) {
         UITabBarItem *tbi = [self tabBarItem];
@@ -63,29 +65,6 @@
     [self startIndicator];
     //NSMutableString *tempurl = [NSMutableString stringWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/policies/"];
     [[Device initialize] requestPolicy];
-/*   NSURL *xmlUrl = [[NSURL alloc] initWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/policies/aaaaaaa.xml"];
-    NSXMLParser *myparser = [[NSXMLParser alloc] initWithContentsOfURL: xmlUrl];
-   // NSXMLParser *myparser = [[NSXMLParser alloc] initWithData:<#(NSData *)#>
-   // NSXMLParser *myparser = [[NSXMLParser alloc] initWithData:[NSData dataWithContentsOfFile:dictPath2]];
-    [myparser setDelegate:self];
-   bool result =  [myparser parse];
-    if(result)
-    {
-        //archiving
-        NSMutableString *title = [NSMutableString stringWithString:[[xmlUrl lastPathComponent] stringByDeletingPathExtension]];
-
-        //[self archieveXML:[NSString stringWithContentsOfURL:xmlUrl encoding:NSASCIIStringEncoding error:NULL] withTitle: title];
-       [self archieveXML:output withTitle:title];
-        [textView setText:[self getXMLbyKey:title]];
-        NSLog(@"Policy updated and archived");
-    } else {
-        [textView setText:@"Cannot parse this document"];
-    }
-    [output release];
-    [myparser setDelegate:nil];
-    [xmlUrl release];
-    [myparser release]; */
-    
 }
 -(void) newPolicy:(NSString *)newDoc
 {
@@ -132,78 +111,13 @@
     }
     
     UIAlertView *connectFailMessage = [[UIAlertView alloc] initWithTitle:@"Result" message:@"Policy Restored from DB"  delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
-    [connectFailMessage show];
+    //[connectFailMessage show];
     [connectFailMessage release];
 }
 -(IBAction)clearAll
 {
-    [textView setText:@""];
-    
-    NSFileManager *fileMgr = [[[NSFileManager alloc] init] autorelease];
-    NSError *error = nil;
-       NSLog(@"File path is %@", filePath);
-    NSArray *directoryContents = [fileMgr contentsOfDirectoryAtPath:filePath error:&error];
-    if (error == nil) {
-        for (NSString *path in directoryContents) {
-            NSString *fullPath = [filePath stringByAppendingPathComponent:path];
-            BOOL removeSuccess = [fileMgr removeItemAtPath:fullPath error:&error];
-            if (!removeSuccess) {
-                NSLog(@"Error in clearing file");
-            } else {
-                NSLog(@"File deleted!");
-            }
-        }
-        //Alert window
-        UIAlertView *connectFailMessage = [[UIAlertView alloc] initWithTitle:@"Result" message:@"Files deleted"  delegate: self cancelButtonTitle:@"Ok" otherButtonTitles: nil];
-        [connectFailMessage show];
-        [connectFailMessage release];
-        
-    } else {
-        NSLog(@"Error %@", [error description]);
-    }
+    [[Device initialize] wipeData];
 }
-
-//Parsing actions from protocol
--(void)parser: (NSXMLParser *) parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName attributes:(NSDictionary *)attributeDict {
-  
-    if ([elementName isEqualToString:@"geolocation"]) {
-        [[Device initialize] gpsController:attributeDict];
-    }
-    [output appendString:[NSString stringWithFormat:@"<%@",elementName]];
-     for (id keys in [attributeDict allKeys]) {
-        [output appendFormat:@" %@=\"%@\"", keys, [attributeDict objectForKey:keys]];
-    }
-    [output appendString:@">"];
-}
-
--(void)parser: (NSXMLParser *) parser foundCharacters:(NSString *)string {
-    //NSLog(@"Element value: %@", string);          
-}
-
--(void)parser: (NSXMLParser *) parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName {
-    
-    [output appendFormat:@"</%@>", elementName];
-}
-
--(void)parserDidStartDocument:(NSXMLParser *)parser
-{
-    NSLog(@"Start Parsing Document!");
-    [[Device initialize] deactivateControls];
-    output = [[NSMutableString alloc] initWithString:@""];
-}
-
--(void)parserDidEndDocument:(NSXMLParser *) parser
-{
-    NSLog(@"End parsing Document");
-    [self stopIndicator];
-}
-
--(void)parser: (NSXMLParser *) parser parseErrorOccurred:(NSError *)parseError{
-    NSLog(@"Errors in parsing: %@", [parseError description]);
-    [self stopIndicator];
-    errors = 1;
-}
-
 -(NSString *) retrieve:(NSURL *) url{
     
     @try {
@@ -217,11 +131,19 @@
 
 -(void) archieveXML:(NSString *) content withTitle:(NSString *)title
 {
-    NSMutableDictionary *archiveDict = [NSMutableDictionary dictionaryWithDictionary:[self retrieveArchive]];
-    [archiveDict setValue:content forKey:title];
+    NSFileManager *fileMgr = [[[NSFileManager alloc] init] autorelease];
+    NSError *error = nil;
+    NSArray *directoryContents = [fileMgr contentsOfDirectoryAtPath:[rootPath stringByAppendingString:@"/policy/"] error:&error];
+    for (NSString *path in directoryContents) {
+        NSString *fullPath = [[rootPath stringByAppendingString:@"/policy/"] stringByAppendingPathComponent:path];
+        BOOL removeSuccess = [fileMgr removeItemAtPath:fullPath error:&error];
+    }
+    //NSMutableDictionary *archiveDict = [NSMutableDictionary dictionaryWithDictionary:[self retrieveArchive]];
+    NSMutableDictionary *archiveDict = [NSMutableDictionary dictionaryWithObject:content forKey:title];
+    //[archiveDict setValue:content forKey:title];
     [NSKeyedArchiver archiveRootObject:archiveDict toFile:dictPath];
     NSMutableString *location = [NSMutableString stringWithString:rootPath];
-    [location appendString:@"/policy/"];
+    [location appendString:@"/Policy/"];
     [location appendString:title];
     [location appendString:@".xml"];
     [content writeToFile:location atomically:true encoding:NSUTF8StringEncoding error: NULL]; 
@@ -240,10 +162,109 @@
 }
 -(void) startIndicator
 {
-    [myindicator startAnimating];
+    //[myindicator startAnimating];
 }
 -(void) stopIndicator
 {
-    [myindicator stopAnimating];
+    //[myindicator stopAnimating];
+}
+#pragma mark Parser delegate methods
+//Parsing actions from protocol
+-(void)parser: (NSXMLParser *) parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName attributes:(NSDictionary *)attributeDict {
+    
+    if ([elementName isEqualToString:@"geolocation"]) {
+        [[Device initialize] gpsController:attributeDict];
+    }
+    if ([elementName isEqualToString:@"timeframe"]) {
+        [[Device initialize] timeController:attributeDict];
+    }
+    [output appendString:[NSString stringWithFormat:@"<%@",elementName]];
+    for (id keys in [attributeDict allKeys]) {
+        [output appendFormat:@" %@=\"%@\"", keys, [attributeDict objectForKey:keys]];
+    }
+    
+    if (![elementName isEqualToString:@"policy"]){
+        [sectionContent setObject:attributeDict forKey: elementName];
+        [sectionTitles addObject:elementName];
+    }
+    [output appendString:@">"];
+}
+
+-(void)parser: (NSXMLParser *) parser foundCharacters:(NSString *)string {
+    //NSLog(@"Element value: %@", string);          
+}
+
+-(void)parser: (NSXMLParser *) parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName {
+    
+    [output appendFormat:@"</%@>", elementName];
+}
+
+-(void)parserDidStartDocument:(NSXMLParser *)parser
+{
+    //NSLog(@"Start Parsing Document!");
+    [[Device initialize] deactivateControls];
+    output = [[NSMutableString alloc] initWithString:@""];
+    [sectionContent release];
+    sectionContent = nil;
+    sectionContent = [[NSMutableDictionary alloc] init];
+    [sectionTitles release];
+    sectionTitles = nil;
+    sectionTitles = [[NSMutableArray alloc] init];
+}
+
+-(void)parserDidEndDocument:(NSXMLParser *) parser
+{
+    //NSLog(@"End parsing Document");
+    [self stopIndicator];
+    [mytable reloadData];
+}
+
+-(void)parser: (NSXMLParser *) parser parseErrorOccurred:(NSError *)parseError{
+    NSLog(@"Policy parser - Errors in parsing: %@", [parseError description]);
+    [self stopIndicator];
+    errors = 1;
+}
+
+#pragma mark Table delegate methods
+- (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
+{
+    return (NSInteger) [sectionTitles count];
+}
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section
+{
+    NSString *key = [sectionTitles objectAtIndex:section];
+    NSArray *keys = [[sectionContent objectForKey:key] allKeys];
+    NSInteger rows = [keys count];
+    
+    return rows;
+    //return 2;
+}
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath
+{
+    NSString *key = [sectionTitles objectAtIndex:[indexPath section]];
+    NSDictionary *contents = [sectionContent objectForKey:key];
+    
+    NSString *contentForThisRow = [contents objectForKey:[[contents allKeys] objectAtIndex:[indexPath row]]];
+    
+    static NSString *CellIdentifier = @"CellIdentifier";
+	
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:CellIdentifier];
+    if (cell == nil)
+    {
+        cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleSubtitle reuseIdentifier:CellIdentifier] autorelease];
+        // Do anything that should be the same on EACH cell here.  Fonts, colors, etc.
+    }
+	
+    // Do anything that COULD be different on each cell here.  Text, images, etc.
+    [cell.textLabel setText:[[contents allKeys] objectAtIndex:[indexPath row]]];
+    [cell.detailTextLabel setText:contentForThisRow];
+	
+    return cell;
+}
+- (NSString *)tableView:(UITableView *)tableView titleForHeaderInSection:(NSInteger)section
+{
+    NSString *key = [sectionTitles objectAtIndex:section];
+    
+    return key;
 }
 @end
