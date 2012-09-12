@@ -38,10 +38,31 @@
    return [self init];
 }
 
+-(void)createDummyCoordinates{
+    
+    pinsCoordinates = [NSArray arrayWithObjects:
+                        [NSArray arrayWithObjects:@"37.77544", @"-122.408527", nil],
+                        [NSArray arrayWithObjects:@"37.78044", @"-122.408627", nil],
+                        [NSArray arrayWithObjects:@"37.77044", @"-122.408727", nil],
+                        [NSArray arrayWithObjects:@"37.77044", @"-122.415727", nil],
+                        nil];
+    for(NSArray *point in pinsCoordinates){
+        GpsPins *pin1 = [[GpsPins alloc] init];
+        [pin1 setCoordinate:CLLocationCoordinate2DMake([[point objectAtIndex:0] doubleValue], [[point objectAtIndex:1] doubleValue])];
+        [_mapView addAnnotation:pin1];
+        [pin1 release];
+    }
+}
+
+
 - (void)viewDidLoad
 {
     [super viewDidLoad];
 	// Do any additional setup after loading the view.
+    //GpsPins *pin1 = [[GpsPins alloc] init];
+    //[pin1 setCoordinate:CLLocationCoordinate2DMake(37.77544, -122.408427)];
+    //[_mapView addAnnotation:pin1];
+    [self createDummyCoordinates];
 }
 
 - (void)viewDidUnload
@@ -61,19 +82,7 @@
 -(void) updateRegion:(NSDictionary *)safeZone
 {
     //TODO: Fix code to add overlay with secure zone
-    //if (safeZone!=nil){
-        //CLLocationCoordinate2D  points[4];
         
-        //points[0] = CLLocationCoordinate2DMake(41.000512, -109.050116);
-        //points[1] = CLLocationCoordinate2DMake(41.002371, -102.052066);
-        //points[2] = CLLocationCoordinate2DMake(36.993076, -102.041981);
-        //points[3] = CLLocationCoordinate2DMake(36.99892, -109.045267);
-        
-        //MKPolygon* poly = [MKPolygon polygonWithCoordinates:points count:4];
-        
-        //[_mapView addOverlay:poly];    
-    //}
-    
     CLLocationCoordinate2D zoomLocation;
     zoomLocation.latitude = [myphone getLat];
     zoomLocation.longitude= [myphone getLong];

@@ -12,13 +12,13 @@
 
 @end
 @implementation DetailsViewController
-@synthesize fileView;
+@synthesize fileView, webView;
 -(id) initWithNibName:(NSString *)nibNameOrNil file:(NSString *)fileToDisplay
 {
     isNewFile=false;
     isSharedFile = false;
+    isStaticFile = false;
     file = [[NSString stringWithString:fileToDisplay] retain];
-    error = false;
     return [self initWithNibName:nibNameOrNil bundle:nil];    
 }
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
@@ -26,6 +26,10 @@
     self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil];
     if (self) {
         // Custom initialization
+        [self addGestureControllers];
+        error = false;
+        randomNumber = nil;
+        gestures = [[NSMutableString stringWithString:@""] retain];
     }
     return self;
 }
@@ -33,14 +37,24 @@
 {
     isNewFile = true;
     isSharedFile = false;
-    error = false;
+    isStaticFile = false;
     return [self initWithNibName:nibNameOrNil bundle:nil];    
 }
 -(id)initWithSharedFile:(NSString *)nibNameOrNil file:(NSString *)fileToDisplay
 {
     isSharedFile = true;
     isNewFile=false;
-    error = false;
+    isStaticFile = false;
+   
+    file = [[NSString stringWithString:fileToDisplay] retain];
+    return [self initWithNibName:nibNameOrNil bundle:nil]; 
+}
+-(id)initWithStaticFile:(NSString *)nibNameOrNil file:(NSString *)fileToDisplay
+{
+    isStaticFile = true;
+    isSharedFile = false;
+    isNewFile = false;
+    
     file = [[NSString stringWithString:fileToDisplay] retain];
     return [self initWithNibName:nibNameOrNil bundle:nil]; 
 }
@@ -66,69 +80,87 @@
         if (fileExists) {
             //Retrieve the key that corresponds to the file
             NSString *key=nil;
-            if ([KeychainWrapper keychainStringFromMatchingIdentifier:[file lastPathComponent]]){
-                key = [NSString stringWithString:[KeychainWrapper keychainStringFromMatchingIdentifier:[file lastPathComponent]]];
+            NSString *iv=nil;
+            if ([KeychainWrapper keychainStringFromMatchingIdentifier:[[file lastPathComponent] stringByAppendingString:@"key"]] && [KeychainWrapper keychainStringFromMatchingIdentifier:[[file lastPathComponent] stringByAppendingString:@"iv"]]){
+                key = [NSString stringWithString:[KeychainWrapper keychainStringFromMatchingIdentifier:[[file lastPathComponent] stringByAppendingString:@"key"]]];
+                iv = [NSString stringWithString:[KeychainWrapper keychainStringFromMatchingIdentifier:[[file lastPathComponent] stringByAppendingString:@"iv"]]];
             } else {
                 key = [NSString stringWithString:@""];
+                iv = [NSString stringWithString:@""];
             }
-            //Decrypt file using the key
-            NSString *text = [NSString stringWithString:
-                              [[CryptoHelper sharedInstance] 
-                               decryptString:[NSString stringWithContentsOfFile:file encoding:NSUTF8StringEncoding error:nil] 
-                               withKey:key
-                               andIV:nil]];
-            [self.navigationController.topViewController setTitle:[file lastPathComponent]];
             
-            [fileView setText:text];
-            //[fileView setText:[NSString stringWithContentsOfFile:file encoding:NSUTF8StringEncoding error:nil]];
+            if (isStaticFile){
+                [webView setHidden:false];
+                [fileView setHidden:true];
+                //Decrypt data using the key
+                NSData *decryptedFile = [NSData dataWithData:[[CryptoHelper sharedInstance] decryptData:[NSData dataWithContentsOfFile:file] 
+                                                                                                withKey:key 
+                                                                                                  andIV:iv ]];
+                [decryptedFile writeToFile:file options:NSDataWritingFileProtectionNone error:nil];
+                NSURL *targetURL = [NSURL fileURLWithPath:file];
+                NSURLRequest *request = [NSURLRequest requestWithURL:targetURL];
+                [webView loadRequest:request];
+            } else {
+                //Decrypt file using the key
+                NSString *text = [NSString stringWithString:
+                                  [[CryptoHelper sharedInstance] 
+                                   decryptString:[NSString stringWithContentsOfFile:file encoding:NSUTF8StringEncoding error:nil] 
+                                   withKey:key
+                                   andIV:iv]];
+                [self.navigationController.topViewController setTitle:[file lastPathComponent]];
+                
+                [fileView setText:text];
+                
+            }
         }else {
         [fileView setText:@"File does not exist"];
         error=true;
         }
         
     }
+    if (isStaticFile){
+        self.navigationItem.rightBarButtonItem=nil; 
+    } else {
+        UIImage *buttonImage = [UIImage imageNamed:@"locked.png"];
+        UIBarButtonItem *editButton = [[UIBarButtonItem alloc] initWithImage:buttonImage style:UIBarButtonItemStylePlain target:self action:@selector(unlockText)];          
+        self.navigationItem.rightBarButtonItem = editButton;
+    }
     
-    UIImage *buttonImage = [UIImage imageNamed:@"locked.png"];
-    UIBarButtonItem *editButton = [[UIBarButtonItem alloc] initWithImage:buttonImage style:UIBarButtonItemStylePlain target:self action:@selector(unlockText)];          
-    self.navigationItem.rightBarButtonItem = editButton;
-
     
 }
 -(void) viewDidDisappear:(BOOL)animated
 {
     [super viewDidDisappear:animated];
     if (!error && file!=nil){
-        
-        //Get date to use as KEY and IV
-        NSDateFormatter* dateFormatter = [[NSDateFormatter alloc] init];
-        [dateFormatter setDateStyle:NSDateFormatterMediumStyle]; [dateFormatter setTimeStyle:NSDateFormatterMediumStyle];
-        NSString *dateString = [dateFormatter stringFromDate:[NSDate date]];
-        [dateFormatter release];
         //Compute KEY
-        NSString *key = [NSString stringWithString:[[KeychainWrapper computeSHA256DigestForString:dateString] substringWithRange:NSMakeRange(0, 16)]];
+        NSArray *encryptionCredentials = [NSArray arrayWithArray:[self generateKeyAndIv]];
         //Store KEY to the keyChain
-        [KeychainWrapper createKeychainValue:key forIdentifier:[file lastPathComponent]];
-       
-        if (!isSharedFile) {
-            NSData *fileToWrite = [[[CryptoHelper sharedInstance] encryptString:[fileView text] withKey:key andIV:nil] dataUsingEncoding:NSUTF8StringEncoding]; 
-            [fileToWrite writeToFile:file options:NSDataWritingFileProtectionComplete error:nil]; 
-            
+        NSString *key = [encryptionCredentials objectAtIndex:0];
+        NSString *iv = [encryptionCredentials objectAtIndex:1];
+        [KeychainWrapper createKeychainValue:key forIdentifier:[[file lastPathComponent] stringByAppendingString:@"key"]];
+        [KeychainWrapper createKeychainValue:iv forIdentifier:[[file lastPathComponent] stringByAppendingString:@"iv"]];
+        if (!isStaticFile) {
+            if (!isSharedFile) {
+                NSData *fileToWrite = [[[CryptoHelper sharedInstance] encryptString:[fileView text] withKey:key andIV:iv] dataUsingEncoding:NSUTF8StringEncoding]; 
+                [fileToWrite writeToFile:file options:NSDataWritingFileProtectionComplete error:nil]; 
+            } else {
+                NSString *rootPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+                NSString *filePath = [NSString stringWithString:[rootPath stringByAppendingString:@"/Files/"]];
+                NSString *fileName = [[NSString stringWithString:filePath] stringByAppendingString:[file lastPathComponent]];
+                
+                NSData *fileToWrite =[[[CryptoHelper sharedInstance] 
+                                       encryptString:[fileView text] 
+                                       withKey:key 
+                                       andIV:iv] 
+                                      dataUsingEncoding:NSUTF8StringEncoding];
+                [fileToWrite writeToFile:fileName options:NSDataWritingFileProtectionComplete error:nil]; 
+            }
         } else {
-            
-            NSString *rootPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
-            NSString *filePath = [NSString stringWithString:[rootPath stringByAppendingString:@"/Files/"]];
-            NSString *fileName = [[NSString stringWithString:filePath] stringByAppendingString:[file lastPathComponent]];
-                       
-            NSData *fileToWrite =[[[CryptoHelper sharedInstance] 
-                                   encryptString:[fileView text] 
-                                   withKey:key 
-                                   andIV:nil] 
-                                  dataUsingEncoding:NSUTF8StringEncoding];
-            [fileToWrite writeToFile:fileName options:NSDataWritingFileProtectionComplete error:nil]; 
+            NSData *fileToWrite = [[CryptoHelper sharedInstance] encryptData:[NSData dataWithContentsOfFile:file] withKey:key andIV:iv]; 
+            [fileToWrite writeToFile:file options:NSDataWritingFileProtectionComplete error:nil]; 
         }
-        NSLog(@"Symmetric key used: %@", key);
+                NSLog(@"Symmetric key used: %@, IV used : %@", key, iv);
     }
-    
 }
 
 - (void)viewDidUnload
@@ -159,6 +191,40 @@
     [self.navigationItem.rightBarButtonItem setAction:@selector(unlockText)];
     [fileView setEditable:false];
 }
+-(void) addGestureControllers
+{
+    UITapGestureRecognizer *fingerTap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)];
+    fingerTap.numberOfTapsRequired = 1;
+    [self.view addGestureRecognizer:fingerTap];
+    [fingerTap release];
+    
+    UISwipeGestureRecognizer *swipeTap = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
+    [self.view addGestureRecognizer:swipeTap];
+    [swipeTap release];
+
+    UISwipeGestureRecognizer *swipeTap2 = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
+    swipeTap2.direction=UISwipeGestureRecognizerDirectionDown;
+    [self.view addGestureRecognizer:swipeTap2];
+    [swipeTap2 release];
+    
+    UISwipeGestureRecognizer *swipeTap3 = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
+    swipeTap3.direction=UISwipeGestureRecognizerDirectionUp;
+    [self.view addGestureRecognizer:swipeTap3];
+    [swipeTap3 release];
+    
+    UISwipeGestureRecognizer *swipeTap4 = [[UISwipeGestureRecognizer alloc] initWithTarget:self action:@selector(handleSwipe:)];
+    swipeTap4.direction=UISwipeGestureRecognizerDirectionLeft;
+    [self.view addGestureRecognizer:swipeTap4];
+    [swipeTap4 release];
+    
+    UIPinchGestureRecognizer *fingerPinch = 
+    [[[UIPinchGestureRecognizer alloc] initWithTarget:self action:@selector(fingerPinch:)] autorelease];
+    [[self view] addGestureRecognizer:fingerPinch];
+    
+    UIRotationGestureRecognizer *fingersRotate = 
+    [[[UIRotationGestureRecognizer alloc] initWithTarget:self action:@selector(fingersRotate:)] autorelease];
+    [[self view] addGestureRecognizer:fingersRotate];
+}
 
 - (void) alertView:(UIAlertView *)alertView clickedButtonAtIndex:(NSInteger)buttonIndex
 {       
@@ -181,5 +247,49 @@
             [self.navigationController popViewControllerAnimated:YES];
         }
     }
+}
+
+#pragma mark Gesture Recognition methods
+- (void)handleTap:(UIGestureRecognizer *)sender 
+{   
+    CGPoint tapPoint = [sender locationInView:sender.view.superview];
+    NSString *temp = [NSString stringWithFormat:@"%d,%d", (int) tapPoint.x, (int) tapPoint.y]; 
+    [gestures appendString:temp];
+}
+-(void)handleSwipe:(UIGestureRecognizer *)sender {
+   CGPoint point = [sender locationInView:[self view]];
+    NSString *temp = [NSString stringWithFormat:@"%d,%d", (int) point.x, (int) point.y]; 
+    [gestures appendString: temp];
+}
+- (void)fingersRotate:(UIRotationGestureRecognizer *)recognizer {
+    NSString *temp = [NSString stringWithFormat:@"%f", [recognizer rotation] * (180 / M_PI)]; 
+    [gestures appendString: temp];
+}
+- (void)fingerPinch:(UIPinchGestureRecognizer *)recognizer {
+    NSString *temp = [NSString stringWithFormat:@"%f", recognizer.scale]; 
+    [gestures appendString: temp];
+}
+#pragma mark Key and IV generation
+-(NSArray *) generateKeyAndIv {
+    
+    //Get date to use as KEY and IV
+    NSDateFormatter* dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateStyle:NSDateFormatterMediumStyle]; [dateFormatter setTimeStyle:NSDateFormatterMediumStyle];
+    NSString *dateString = [dateFormatter stringFromDate:[NSDate date]];
+    [dateFormatter release];
+    
+    NSString *fullText = [[[NSString stringWithString:gestures] stringByAppendingString:dateString] stringByAppendingString:[self generateRandomNumberMaxValue:999999]];
+    
+     //Compute KEY
+    NSString *key = [NSString stringWithString:[[KeychainWrapper computeSHA256DigestForString:fullText] substringWithRange:NSMakeRange(0, 16)]];
+    NSString *iv = [NSString stringWithString:[[KeychainWrapper computeSHA256DigestForString:fullText] substringWithRange:NSMakeRange(16, 16)]];
+    
+    NSArray *encryptionCredentials =[NSArray arrayWithObjects:key,iv, nil];
+   return encryptionCredentials;
+}
+-(NSString *) generateRandomNumberMaxValue:(int) max{
+    int number = (arc4random()%max)+1; //Generates Number from 1 to 100.
+    NSString *string = [NSString stringWithFormat:@"%i", number];
+    return string;
 }
 @end

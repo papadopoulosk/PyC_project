@@ -20,6 +20,7 @@
     NSString *filePath;
     NSString *sharedPath;
     UINavigationController *navBar;
+    NSArray *staticExtensions;
 }
 @property (assign) IBOutlet UITableView *filesTable;
 @property (assign) IBOutlet UINavigationController *navBar;

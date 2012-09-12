@@ -27,6 +27,7 @@
     NSMutableDictionary *sectionContent;//
     //NSURL *xmlUrl;
     UITableView *mytable;
+    NSDictionary *policyTags;
 }
 @property (assign) IBOutlet UITextView *textView;
 @property (assign) IBOutlet UILabel *mylabel;

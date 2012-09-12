@@ -26,6 +26,8 @@
 {
     self = [super initWithNibName:Nil bundle:Nil];
     if (self) {
+        staticExtensions = [[NSArray arrayWithObjects:@"png",@"jpg",@"pdf",@"ppt",@"doc",@"xls",@"pptx",@"docx",@"xlsx", nil] retain];
+        
         rootPath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0] retain];
         filePath = [[NSString stringWithString:[rootPath stringByAppendingString:@"/Files/"]] retain];
         sharedPath = [[NSString stringWithString:[rootPath stringByAppendingString:@"/Shared/"]] retain];
@@ -38,23 +40,19 @@
         [tbi setTitle:@"Files"];
         
         
-        
         fileLists = nil;
         fileTypes = nil;
         [self scanFiles];
     }
     return self;
-
 }
 -(void) dealloc
 {
-    
     [fileLists release];
     [fileTypes release];
     [tableImages release];
     [super dealloc];
 }
-
 - (void)viewDidLoad
 {
     [super viewDidLoad];
@@ -75,14 +73,12 @@
 {
     [self refreshFiles];
 }
-
 - (void)viewDidUnload
 {
     [super viewDidUnload];
     // Release any retained subviews of the main view.
     // e.g. self.myOutlet = nil;
 }
-
 - (BOOL)shouldAutorotateToInterfaceOrientation:(UIInterfaceOrientation)interfaceOrientation
 {
     return (interfaceOrientation == UIInterfaceOrientationPortrait);
@@ -108,7 +104,6 @@
         [fileTypes release];
         fileTypes = [[NSMutableDictionary alloc] init];
     }
-    
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSMutableArray *arrayFromFile = [NSMutableArray arrayWithArray:[fileManager contentsOfDirectoryAtPath:filePath error:nil]];
     NSMutableArray *arrayFromSharedFile = [NSMutableArray arrayWithArray:[fileManager contentsOfDirectoryAtPath:sharedPath error:nil]];
@@ -125,10 +120,8 @@
     }
     [fileTypes setObject:arrayFromSharedFile forKey:@"Shared"];
     self.title = @"Repository";
-
 }
 #pragma mark Table delegate 
-
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)tableView
 {
     return (NSInteger) [[fileTypes allKeys] count]; 
@@ -151,12 +144,10 @@
         cell = [[[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:CellIdentifier] autorelease];
         // Do anything that should be the same on EACH cell here.  Fonts, colors, etc.
     }
-	
     // Do anything that COULD be different on each cell here.  Text, images, etc.
     [cell.textLabel setText:contentForThisRow];
 	return cell;
 }
-
 - (UIView *)tableView:(UITableView *)tableView viewForHeaderInSection:(NSInteger)section 
 {
     NSString *image =  [[fileTypes allKeys] objectAtIndex:section];
@@ -187,31 +178,36 @@
         return nil;
     }
 }
-
 - (CGFloat)tableView:(UITableView *)tableView heightForHeaderInSection:(NSInteger)section {
 	return 30;
 }
-
 -(void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath
 {
     NSString *file0 = [NSString stringWithString:[[[tableView cellForRowAtIndexPath:indexPath] textLabel] text]];
     if (![[[fileTypes allKeys] objectAtIndex:[indexPath section]] isEqualToString:@"Shared"]){
+        //Not shared file
         DetailsViewController *detailsViewController = [[DetailsViewController alloc] initWithNibName:@"DetailsViewController" file:[filePath stringByAppendingString:file0]];
         [self.navBar pushViewController:detailsViewController animated:TRUE];
         [detailsViewController release];
     } else {
-        [[tableView cellForRowAtIndexPath:indexPath] setSelected:NO animated:YES];
-        DetailsViewController *detailsViewController = [[DetailsViewController alloc] initWithSharedFile:@"DetailsViewController" file:[sharedPath stringByAppendingString:file0]];
-        [self.navBar pushViewController:detailsViewController animated:TRUE];
-        [detailsViewController release];
+        //File that has been shared
+        if([staticExtensions containsObject:[file0 pathExtension]]) {
+            [[tableView cellForRowAtIndexPath:indexPath] setSelected:NO animated:YES];
+            DetailsViewController *detailsViewController = [[DetailsViewController alloc] initWithStaticFile:@"DetailsViewController" file:[sharedPath stringByAppendingString:file0]];
+            [self.navBar pushViewController:detailsViewController animated:TRUE];
+            [detailsViewController release];
+        } else {
+            [[tableView cellForRowAtIndexPath:indexPath] setSelected:NO animated:YES];
+            DetailsViewController *detailsViewController = [[DetailsViewController alloc] initWithSharedFile:@"DetailsViewController" file:[sharedPath stringByAppendingString:file0]];
+            [self.navBar pushViewController:detailsViewController animated:TRUE];
+            [detailsViewController release];
+        }
     }
-    
 }
 - (BOOL)tableView:(UITableView *)tableView canEditRowAtIndexPath:(NSIndexPath *)indexPath {
     // Return YES if you want the specified item to be editable.
     return YES;
 }
-
 // Override to support editing the table view.
 - (void)tableView:(UITableView *)tableView commitEditingStyle:(UITableViewCellEditingStyle)editingStyle forRowAtIndexPath:(NSIndexPath *)indexPath {
     if (editingStyle == UITableViewCellEditingStyleDelete) {
@@ -238,5 +234,4 @@
         NSLog(@"Unable to delete file: %@", [error localizedDescription]);
     [self refreshFiles];
 }
-
 @end

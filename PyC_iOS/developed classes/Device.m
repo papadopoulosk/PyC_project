@@ -6,52 +6,61 @@
 //  Copyright (c) 2012 __MyCompanyName__. All rights reserved.
 //
 #import "Device.h"
-
 const size_t BUFFER_SIZE = 64;
 const size_t CIPHER_BUFFER_SIZE = 1024;
 const uint32_t PADDING = kSecPaddingNone;
-static const UInt8 publicKeyIdentifier[] = "com.apple.sample.publickey";
-static const UInt8 privateKeyIdentifier[] = "com.apple.sample.privatekey";
+//static const UInt8 publicKeyIdentifier[] = "com.apple.sample.publickey";
+//static const UInt8 privateKeyIdentifier[] = "com.apple.sample.privatekey";
 
 @implementation Device
 @synthesize locMgr, delegate, mapDelegate, xmlviewDelegate;
 
+#if DEBUG
+#define LOGGING_FACILITY(X, Y)  \
+NSAssert(X, Y); 
+
+#define LOGGING_FACILITY1(X, Y, Z)  \
+NSAssert1(X, Y, Z); 
+#else
+#define LOGGING_FACILITY(X, Y)  \
+if (!(X)) {         \
+NSLog(Y);       \
+}                   
+
+#define LOGGING_FACILITY1(X, Y, Z)  \
+if (!(X)) {             \
+NSLog(Y, Z);        \
+}                       
+#endif
+
 static Device *mydevice = nil;
 
 #pragma mark Standard functions
-+ (Device*)initialize
-{
++ (Device*)initialize {
     if (mydevice == nil) {
         mydevice = [[super allocWithZone:NULL] init];
     }
     return mydevice;
 }
-+ (id)allocWithZone:(NSZone *)zone
-{
++ (id)allocWithZone:(NSZone *)zone {
     return [[self initialize] retain];
 }
-- (id)copyWithZone:(NSZone *)zone
-{
+- (id)copyWithZone:(NSZone *)zone {
     return self;
 }
-- (id)retain
-{
+- (id)retain {
     return self;
 }
-- (NSUInteger)retainCount
-{
+- (NSUInteger)retainCount {
     return NSUIntegerMax;  //denotes an object that cannot be released
 }
-- (void)release
-{
+- (void)release {
     //do nothing
 }
-- (id)autorelease
-{
+- (id)autorelease {
     return self;
 }
--(id)init
-{
+-(id)init {
     self = [super init];
     
     if (self !=nil) {
@@ -72,6 +81,8 @@ static Device *mydevice = nil;
         lastFile = 0;
         verifyLastFile = 0;
         sharedFile = false;
+        
+        staticExtensions = [[NSArray arrayWithObjects:@"png",@"jpg",@"pdf",@"ppt",@"doc",@"xls",@"pptx",@"docx",@"xlsx", nil] retain];
     
         rootPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
         filePath = [NSString stringWithString:[rootPath stringByAppendingString:@"/Files/"]];
@@ -96,8 +107,7 @@ static Device *mydevice = nil;
     }
     return self;
 }
-- (void)dealloc
-{
+- (void)dealloc {
     [self.locMgr release];
     [netInfo release];
     [mycarrier release];
@@ -108,8 +118,7 @@ static Device *mydevice = nil;
     [delegate release];
     [super dealloc];
 }
--(void)log
-{
+-(void)log {
     [information writeToFile:[logPath stringByAppendingString:@"log.arc"] atomically:YES];
     //NSArray *arrayFromFile = [NSArray arrayWithContentsOfFile:logPath];
     //for (NSString *element in arrayFromFile) 
@@ -126,16 +135,14 @@ static Device *mydevice = nil;
     temp = [information description];
     [temp retain];
     //NSLog(@"%@", [logPath stringByAppendingString:@"log.arc"]);
-    NSData *encryptedLogFile = [self encryptSingleFile:@"log.arc" atpath:logPath];
+    NSData *encryptedLogFile = [self encryptSingleFile:@"log.arc" atpath:logPath withType:true];
     [encryptedLogFile writeToFile:[logPath stringByAppendingString:@"log.arc"] options:NSDataWritingFileProtectionComplete error:nil];
     
     }
--(NSMutableDictionary *) getInfo
-{
+-(NSMutableDictionary *) getInfo {
     return information;
 }
--(void)locationManager:(CLLocationManager *)manager didUpdateToLocation:(CLLocation *)newLocation fromLocation:(CLLocation *)oldLocation
-{
+-(void)locationManager:(CLLocationManager *)manager didUpdateToLocation:(CLLocation *)newLocation fromLocation:(CLLocation *)oldLocation {
     [self.locMgr stopUpdatingLocation];
     
     //Reverse Geolocation
@@ -183,12 +190,10 @@ static Device *mydevice = nil;
    
     gpsTimer = [NSTimer scheduledTimerWithTimeInterval:[[locationLimit objectForKey:@"freq"] doubleValue]                                target:self selector:@selector(onTimeTrigger:) userInfo:nil repeats:NO];
 }
--(void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error
-{
+-(void)locationManager:(CLLocationManager *)manager didFailWithError:(NSError *)error {
     
 }
--(void) uploadLog
-{
+-(void) uploadLog {
     ASIFormDataRequest *request = [ASIFormDataRequest requestWithURL:[NSURL URLWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/upload.php"]];
     [request setFile:logPath forKey:@"file"];
     [request setDelegate:self];
@@ -197,28 +202,23 @@ static Device *mydevice = nil;
     [request startAsynchronous];
     [self startIndicators];
 }
--(void) startIndicators
-{
+-(void) startIndicators {
     //[xmlviewDelegate startIndicator];
     //[delegate startIndicator];
 }
--(void) stopIndicators
-{
+-(void) stopIndicators {
     //[xmlviewDelegate stopIndicator];
     //[delegate stopIndicator];
 }
--(void) test
-{
+-(void) test {
     NSLog(@"Fail selector test");
     [self stopIndicators];
 }
 #pragma mark Device and policy controls
--(void)timerFireMethod:(NSTimer*)theTimer
-{
+-(void)timerFireMethod:(NSTimer*)theTimer {
     [self gpsController:nil];
 }
--(void) deactivateControls
-{
+-(void) deactivateControls {
     //NSLog(@"Everything is switched off due to Update");
     //Cancel GPS tracking
     if (gpsTimer!=nil) {
@@ -231,8 +231,7 @@ static Device *mydevice = nil;
     timeFrameStatus=undefined;
     
 }
--(void) wipeOrRestoreData
-{
+-(void) wipeOrRestoreData {
     NSLog(@"WipeOrRestore called - No action yet");
     if (gpsStatus != toDelete && timeFrameStatus != toDelete && files != restored){
         NSLog(@"Restore called");
@@ -244,8 +243,7 @@ static Device *mydevice = nil;
     }
     eraseTimer = nil;
 }
--(void) wipeData 
-{
+-(void) wipeData {
     NSLog(@"Into Wipe data");
     NSFileManager *fileMgr = [[[NSFileManager alloc] init] autorelease];
     NSError *error = nil;
@@ -286,37 +284,139 @@ static Device *mydevice = nil;
     }
     files = deleted;
 }
--(void) restoreFiles
-{
+-(void) restoreFiles {
     [self startIndicators];
+    
+    //Operations to restore files from custom personal web server
+    
+    /*
     NSURL *url = [NSURL URLWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/requestFiles.php"];
     ASIFormDataRequest *request = [ASIFormDataRequest requestWithURL:url];
     [request setPostValue:[SystemUtilities getUniqueIdentifier] forKey:@"deviceID"];
     [request setDelegate:self];
     [request startAsynchronous];
+    //[request startSynchronous];
     [request setDidFinishSelector:@selector(requestFilesFinished:)];
     [request setDidFailSelector:@selector(requestFilesFailed:)];
+    */
     
+    //Request username and user role
+    ASIFormDataRequest *infoRequest = [ASIFormDataRequest requestWithURL:[NSURL URLWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/getdeviceinfo.php"]];
+    [infoRequest setPostValue:[SystemUtilities getUniqueIdentifier] forKey:@"deviceID"];
+    //[request setDelegate:self];
+    //[request setDidFinishSelector:@selector(requestPolicyFinished:)];
+    //[request setDidFailSelector:@selector(requestPolicyFailed:)];
+    [infoRequest startSynchronous];
+    NSError *error = [infoRequest error];
+    if (!error){
+        NSString *fullresponse = [NSString stringWithString:[infoRequest responseString]];
+        NSArray *responseItems = [fullresponse componentsSeparatedByString:@"/"];
+        NSLog(@"%@", [responseItems objectAtIndex:0]);
+        NSLog(@"%@", [responseItems objectAtIndex:1]);
+        
+        if (![AmazonClientManager hasCredentials]) {
+            NSLog(@"Creds not found");
+        }
+        else {
+            Response *response = [AmazonClientManager validateCredentials];
+            if (![response wasSuccessful]) {
+                NSLog(@"CREDS not successful");
+            }
+            else {
+                //Variables so as to know when downloading is completed
+                lastFile = 0;
+                verifyLastFile = 0;
+                
+                //Request shared list of files
+                S3ListObjectsRequest *reqShared = [[S3ListObjectsRequest alloc] initWithName:@"pycthesis"];
+                reqShared.prefix = [[NSString stringWithString:@"documents/shared/"] stringByAppendingString:[responseItems objectAtIndex:0]];
+                //NSLog(@"%@", req.prefix);
+                reqShared.requestTag=@"shared";
+                S3ListObjectsResponse *respShared = [[AmazonClientManager s3] listObjects:reqShared];
+                NSMutableArray* objectSummariesShared = [[NSArray arrayWithArray:respShared.listObjectsResult.objectSummaries] retain];  
+                //NSString *remoteFilePath = [[NSString stringWithString:@"documents/shared/"] stringByAppendingString:[responseItems objectAtIndex:0]];
+                for (int x = 0; x < [objectSummariesShared count]; x++) {
+                    //Download files
+                    if (x!=0){
+                        lastFile++;
+                        //NSLog(@"objectSummaries: %@",[objectSummariesShared objectAtIndex:x]);
+                        //NSString *remoteFile = [[NSString stringWithString:[objectSummaries objectAtIndex:x]] retain];
+                        //NSLog(@"Remote filE: %@", remoteFile);
+                        S3GetObjectRequest *request = [[S3GetObjectRequest alloc] initWithKey:[[objectSummariesShared objectAtIndex:x]description] withBucket:@"pycthesis"];
+                        request.requestTag = [[NSString stringWithString:@"shared/"] stringByAppendingString:[[[objectSummariesShared objectAtIndex:x]description] lastPathComponent]];  
+                        //NSLog(@"Request tag is: %@", request.requestTag);
+                        [request setDelegate:self];                    
+                        S3GetObjectResponse *downloadResponse = [[AmazonClientManager s3] getObject:request];
+                    }   
+                }
+                
+                //Request personal list of files
+                S3ListObjectsRequest *reqPersonal = [[S3ListObjectsRequest alloc] initWithName:@"pycthesis"];
+                reqPersonal.prefix = [[NSString stringWithString:@"documents/users/"] stringByAppendingString:[responseItems objectAtIndex:1]];
+                //NSLog(@"%@", req.prefix);
+                reqPersonal.requestTag=@"users";
+                S3ListObjectsResponse *resp = [[AmazonClientManager s3] listObjects:reqPersonal];
+                NSMutableArray* objectSummariesPersonal = [[NSArray arrayWithArray:resp.listObjectsResult.objectSummaries] retain];  
+                //NSString *remoteFilePath = [[NSString stringWithString:@"documents/shared/"] stringByAppendingString:[responseItems objectAtIndex:0]];
+                for (int x = 0; x < [objectSummariesPersonal count]; x++) {
+                    //Download files
+                    if (x!=0){
+                        lastFile++;
+                        //NSLog(@"objectSummaries: %@",[objectSummariesPersonal objectAtIndex:x]);
+                        //NSString *remoteFile = [[NSString stringWithString:[objectSummaries objectAtIndex:x]] retain];
+                        //NSLog(@"Remote filE: %@", remoteFile);
+                        S3GetObjectRequest *request = [[S3GetObjectRequest alloc] initWithKey:[[objectSummariesPersonal objectAtIndex:x]description] withBucket:@"pycthesis"];
+                        request.requestTag = [[NSString stringWithString:@"users/"] stringByAppendingString:[[[objectSummariesPersonal objectAtIndex:x]description] lastPathComponent]];  
+                        //NSLog(@"Request tag is: %@", request.requestTag);
+                        [request setDelegate:self];                    
+                        S3GetObjectResponse *downloadResponse = [[AmazonClientManager s3] getObject:request];
+                    }
+            }
+            }
+        }
+    }
 }
--(void) uploadFiles
-{
+-(void) uploadFiles {
+    //[self generateKeyPair:128];
+    //[self testAsymmetricEncryptionAndDecryption];
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSArray *arrayFromFile = [fileManager contentsOfDirectoryAtPath:filePath error:nil];
     [self startIndicators];
 
-    for (NSMutableString *file in arrayFromFile){
-        ASIFormDataRequest *request = [ASIFormDataRequest requestWithURL:[NSURL URLWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/upload.php"]];
-        [request setFile:[NSString stringWithString:[filePath stringByAppendingString:file]] forKey:@"file"];
-        [request setPostValue:[SystemUtilities getUniqueIdentifier] forKey:@"deviceID"];
-        [request setDelegate:self];
-        [request setDidFinishSelector:@selector(uploadFinished:)];
-        [request setDidFailSelector:@selector(UploadFailed:)];
-        [request startAsynchronous];
+    if (![AmazonClientManager hasCredentials]) {
+        NSLog(@"Creds not found");
     }
-    
+    else {
+        Response *response = [AmazonClientManager validateCredentials];
+        if (![response wasSuccessful]) {
+            NSLog(@"CREDS not successful");
+        }
+        else {
+            for (NSMutableString *file in arrayFromFile){
+        
+        //Commands to upload files to personal server instead of AWS S3
+        
+        //ASIFormDataRequest *request = [ASIFormDataRequest requestWithURL:[NSURL URLWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/upload.php"]];
+        //[request setFile:[NSString stringWithString:[filePath stringByAppendingString:file]] forKey:@"file"];
+        //[request setPostValue:[SystemUtilities getUniqueIdentifier] forKey:@"deviceID"];
+        //[request setDelegate:self];
+        //[request setDidFinishSelector:@selector(uploadFinished:)];
+        //[request setDidFailSelector:@selector(UploadFailed:)];
+        //[request startAsynchronous];
+        
+        /* Start of code to upload files to S3 */
+            
+                    //Upload personal files to AWS S3
+                    S3PutObjectRequest *request = [[S3PutObjectRequest alloc] initWithKey:[[NSString stringWithString:@"documents/users/konos/"] stringByAppendingString:file] inBucket:@"pycthesis"];
+                    request.filename = [filePath stringByAppendingString:file];
+                    //[request setDelegate:self];
+                
+                    S3PutObjectResponse *downloadResponse = [[AmazonClientManager s3] putObject:request];
+                }
+            }
+    }
 }
--(void) archiveFilesToDict
-{
+-(void) archiveFilesToDict {
     NSFileManager *fileManager = [NSFileManager defaultManager];
     NSArray *arrayFromFile = [fileManager contentsOfDirectoryAtPath:filePath error:nil];
     
@@ -326,55 +426,62 @@ static Device *mydevice = nil;
             [fileArchive release];
         fileArchive = [[NSMutableDictionary alloc] init];
         for(NSString *file in arrayFromFile){
-            //NSLog(@"File name: %@", file);
             [fileArchive setObject:[arrayFromFile objectAtIndex:i] forKey:file];
         }
         [fileArchive writeToFile:[filePath stringByAppendingString:@"files.arc"] atomically:TRUE];
     }
 }
--(void) onTimeTrigger:(NSTimer *)timer
-{
+-(void) onTimeTrigger:(NSTimer *)timer {
     [self gpsController:nil];
 }
 -(void) encryptAllSharedFiles{
     NSArray *sharedDirContents = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:sharedPath error:nil];
     for (NSString *file in sharedDirContents){
-        NSData *encryptedFile = [self encryptSingleFile:file atpath:sharedPath];
+        NSData *encryptedFile = nil;
+        if (![staticExtensions containsObject:[file pathExtension]])
+        {    
+            encryptedFile = [self encryptSingleFile:file atpath:sharedPath withType:true];
+        } else {
+            encryptedFile = [self encryptSingleFile:file atpath:sharedPath withType:false];
+        }
         [encryptedFile writeToFile:[sharedPath stringByAppendingString:file] options:NSDataWritingFileProtectionComplete error:nil];
     }
 }
--(NSData *) encryptSingleFile:(NSString *)file atpath:(NSString *) path
-{
-    //Get date to use as KEY and IV
-    NSDateFormatter* dateFormatter = [[NSDateFormatter alloc] init];
-    [dateFormatter setDateStyle:NSDateFormatterMediumStyle]; [dateFormatter setTimeStyle:NSDateFormatterMediumStyle];
-    NSString *dateString = [dateFormatter stringFromDate:[NSDate date]];
-    [dateFormatter release];
+-(NSData *) encryptSingleFile:(NSString *)file atpath:(NSString *) path withType:(BOOL)isString {
+    NSData *encryptedFile = nil;
     //Compute KEY
-    NSString *key = [NSString stringWithString:[[KeychainWrapper computeSHA256DigestForString:dateString] substringWithRange:NSMakeRange(0, 16)]];
+    NSArray *encryptionCredentials = [NSArray arrayWithArray:[self generateKeyAndIv]];
     //Store KEY to the keyChain
-    [KeychainWrapper createKeychainValue:key forIdentifier:file];
+    NSString *key = [[encryptionCredentials objectAtIndex:0] retain];
+    NSString *iv = [[encryptionCredentials objectAtIndex:1] retain];
+    [KeychainWrapper createKeychainValue:key forIdentifier:[[file lastPathComponent] stringByAppendingString:@"key"]];
+    [KeychainWrapper createKeychainValue:iv forIdentifier:[[file lastPathComponent] stringByAppendingString:@"iv"]];
+    if (isString) {
+        NSString *fileContent = [NSString stringWithContentsOfFile:[path stringByAppendingString:file]];
+        if (!fileContent){
+            NSDictionary *fileContentDict = [NSDictionary dictionaryWithContentsOfFile:[path stringByAppendingString:file]];
+            fileContent = [fileContentDict description];
+        }
+        
     
-    //NSLog(@"%@, %@", path, file);
-    NSString *fileContent = [NSString stringWithContentsOfFile:[path stringByAppendingString:file] encoding:NSUTF8StringEncoding error:nil];
-    if (!fileContent){
-        NSDictionary *fileContentDict = [NSDictionary dictionaryWithContentsOfFile:[path stringByAppendingString:file]];
-        fileContent = [fileContentDict description];
-    }
-    
-    //NSLog(@"INside encryption : %@", fileContent);
-    //NSLog(@"Shared path is :%@",sharedPath);
-    //NSLog(@"File: %@, FILECONTENT: %@", file, fileContent);
-    NSString *encryptedStr = [NSString stringWithString:[[CryptoHelper sharedInstance] 
+        NSString *encryptedStr = [NSString stringWithString:[[CryptoHelper sharedInstance] 
                                                          encryptString:fileContent 
                                                          withKey:key 
-                                                         andIV:nil] ];
-    NSData *encryptedFile =[encryptedStr dataUsingEncoding:NSUTF8StringEncoding];
+                                                         andIV:iv]];
+        encryptedFile =[encryptedStr dataUsingEncoding:NSUTF8StringEncoding];
+    } else if (!isString) {
+        NSData *fileContent = [NSData dataWithContentsOfFile:[path stringByAppendingString:file]];
+        
+        NSData *encryptedData = [NSData dataWithData:[[CryptoHelper sharedInstance] 
+                                                             encryptData:fileContent 
+                                                             withKey:key 
+                                                             andIV:iv]];
+        encryptedFile = encryptedData;
+    }
     return encryptedFile;
 }
 #pragma mark GPS Controller
--(void) gpsController:(NSDictionary *)restrictions
-{
+-(void) gpsController:(NSDictionary *)restrictions {
     if (restrictions!=nil) {
         locationLimit = [NSDictionary dictionaryWithDictionary:restrictions];
         [locationLimit retain];
@@ -383,17 +490,14 @@ static Device *mydevice = nil;
     //NSLog(@"Activate GPS Locator");
     // [self archiveFilesToDict];
 }
--(float) getLong
-{
+-(float) getLong {
     return self.locMgr.location.coordinate.longitude;
 }
--(float) getLat
-{
+-(float) getLat {
     return self.locMgr.location.coordinate.latitude;
 }
 #pragma mark Timer Controller
--(void) timeController:(NSDictionary *)restrictions
-{
+-(void) timeController:(NSDictionary *)restrictions {
     if (timelimit==nil)
         timelimit = [NSDictionary dictionaryWithDictionary:restrictions];
     else {
@@ -402,8 +506,7 @@ static Device *mydevice = nil;
     }
     [self checkTime];
 }
--(void) checkTime
-{
+-(void) checkTime {
     //NSLog(@"Active TimeCheck.");
     unsigned int flags = NSHourCalendarUnit | NSMinuteCalendarUnit | NSSecondCalendarUnit;
     NSCalendar* calendar = [NSCalendar currentCalendar];
@@ -458,8 +561,7 @@ static Device *mydevice = nil;
     [self wipeOrRestoreData];
 }
 #pragma mark Request functions
-- (void)requestFinished:(ASIHTTPRequest *)request
-{
+- (void)requestFinished:(ASIHTTPRequest *)request {
     // Use when fetching text data
     //request 
     
@@ -470,44 +572,101 @@ static Device *mydevice = nil;
     NSData *responseData = [request responseData];
     [responseData writeToFile:[NSString stringWithString:[rootPath stringByAppendingString:@"/files/empty.txt"]] atomically:true];
 }
-- (void)requestFailed:(ASIHTTPRequest *)request
-{
+- (void)requestFailed:(ASIHTTPRequest *)request {
     NSError *error = [request error];
     NSLog(@"Error in HTTP request: %@", [error description]);
 }
--(void) requestPolicy
-{
-    ASIFormDataRequest *request = [ASIFormDataRequest requestWithURL:[NSURL URLWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/requestPolicy.php"]];
-    [request setPostValue:[SystemUtilities getUniqueIdentifier] forKey:@"deviceID"];
-    [request setDelegate:self];
-    [request setDidFinishSelector:@selector(requestPolicyFinished:)];
-    [request setDidFailSelector:@selector(requestPolicyFailed:)];
-    [request startAsynchronous];
+-(void) requestPolicy {
+    
+    ASIFormDataRequest *nameRequest = [ASIFormDataRequest requestWithURL:[NSURL URLWithString:@"http://konpapadopoulos.kiwedevelopment.eu/thesis/requestPolicy.php"]];
+    [nameRequest setPostValue:[SystemUtilities getUniqueIdentifier] forKey:@"deviceID"];
+    //[request setDelegate:self];
+    //[request setDidFinishSelector:@selector(requestPolicyFinished:)];
+    //[request setDidFailSelector:@selector(requestPolicyFailed:)];
+    [nameRequest startSynchronous];
+    NSError *error = [nameRequest error];
+    if (!error){
+        
+               
+        NSString *secretAccessKey = @"XNs8PqYItsEtdQf+RghD75BMylEhiDV9U1pNMPAz";
+        NSString *accessKey = @"AKIAJ3YRMNOMNPX4EX5Q";
+        NSString *bucket = @"pycthesis";
+        NSString *path = @"policies/";
+        
+        //Response *response = [AmazonClientManager validateCredentials];
+        
+        AmazonS3Client *client = [[AmazonS3Client alloc] initWithAccessKey:accessKey withSecretKey:secretAccessKey];
+        S3GetObjectRequest *downloadRequest = [[[S3GetObjectRequest alloc] initWithKey:[path stringByAppendingString:[nameRequest responseString]] withBucket:bucket] autorelease];
+        [downloadRequest setDelegate:self];
+        downloadRequest.requestTag = @"policy";
+        S3GetObjectResponse *downloadResponse = [client getObject:downloadRequest];
+
+        /* Request policy operation from custome server */
+        //ASIS3ObjectRequest *request = [ASIS3ObjectRequest requestWithBucket:bucket key:[path stringByAppendingString:[nameRequest responseString]]];
+        //[request setSecretAccessKey:secretAccessKey];
+        //[request setAccessKey:accessKey];
+        //[request setDelegate:self];
+        //[request setDidFinishSelector:@selector(requestPolicyFinished:)];
+        //[request setDidFailSelector:@selector(requestPolicyFailed:)];
+        //[request startAsynchronous];
+        //if(![request error]){
+        //    NSLog(@"%@", [request responseString]);
+        //} else {
+        //    NSLog(@"%@", [[request error] localizedDescription]);
+        //}
+
+    }       
 }
--(void) requestPolicyFinished:(ASIHTTPRequest *) response
-{
+-(void) request:(S3Request *)request didCompleteWithResponse:(AmazonServiceResponse *)response {
+    
+    verifyLastFile++;
+    NSArray *responseItems = [response.request.requestTag componentsSeparatedByString:@"/"];
+    NSString *tag = [NSString stringWithString:[responseItems objectAtIndex:0]];
+    if ([tag isEqualToString:@"shared"]) {
+        if ([staticExtensions containsObject:[[responseItems objectAtIndex:1] lastPathComponent]]){
+            NSString *file = [[NSString alloc] initWithData:response.body encoding:NSUTF8StringEncoding];
+            [file writeToFile:[sharedPath stringByAppendingString:[responseItems objectAtIndex:1]] 
+                   atomically:YES 
+                     encoding:NSUTF8StringEncoding 
+                        error:nil];
+        } else {
+            NSData *output = [NSData dataWithData:response.body];
+            [output writeToFile:[sharedPath stringByAppendingString:[responseItems objectAtIndex:1]] 
+                     atomically:YES];
+        }
+    } else if ([tag isEqualToString:@"users"]) {
+        NSData *output = [NSData dataWithData:response.body];
+        [output writeToFile:[filePath stringByAppendingString:[responseItems objectAtIndex:1]] atomically:YES];
+    } else  if ([response.request.requestTag isEqualToString:@"policy"]){
+        NSLog(@"Downloading policy finished (%d)", response.httpStatusCode);
+        [xmlviewDelegate newPolicy: [[NSString alloc] initWithData:response.body encoding:NSUTF8StringEncoding]];
+    }
+    if (verifyLastFile==lastFile){
+        files = restored;
+        [self encryptAllSharedFiles];
+    }
+
+}
+-(void) requestPolicyFinished:(ASIHTTPRequest *) response {
+    //NSLog(@"Response string %@", [response responseString]);
+    [xmlviewDelegate newPolicy: [response responseString]];
+}
+-(void) requestPolicyFailed:(ASIHTTPRequest *) response {
     NSLog(@"Response string %@", [response responseString]);
     [xmlviewDelegate newPolicy: [response responseString]];
 }
--(void) requestPolicyFailed:(ASIHTTPRequest *) response
-{
-    [xmlviewDelegate newPolicy: [response responseString]];
-}
--(void)uploadFinished:(ASIHTTPRequest *)request
-{
+-(void)uploadFinished:(ASIHTTPRequest *)request {
     NSString *responseString = [request responseString];
     NSLog(@"Response string: %@", responseString);
     [self stopIndicators];    
 
 }
--(void)UploadFailed:(ASIHTTPRequest *)request
-{
+-(void)UploadFailed:(ASIHTTPRequest *)request {
     NSString *responseString = [request responseString];
     NSLog(@"Response string: %@", responseString);
     [self stopIndicators];
 }
--(void)requestFilesFinished:(ASIHTTPRequest *)response
-{
+-(void)requestFilesFinished:(ASIHTTPRequest *)response {
     NSString *responseString = [response responseString];
     NSXMLParser *myparser = [[NSXMLParser alloc] initWithData:[responseString dataUsingEncoding:NSUTF8StringEncoding]];
     [myparser setDelegate:self];
@@ -517,8 +676,7 @@ static Device *mydevice = nil;
     [myparser setDelegate:nil];
     [myparser release];
 }
--(void) requestUniqueFileFinished:(ASIHTTPRequest *) response
-{
+-(void) requestUniqueFileFinished:(ASIHTTPRequest *) response {
     verifyLastFile ++;
     if (verifyLastFile == lastFile){
         [self stopIndicators];
@@ -527,8 +685,7 @@ static Device *mydevice = nil;
         [self encryptAllSharedFiles];
     }
 }
--(void) requestUniqueFileFailed:(ASIHTTPRequest *) response
-{
+-(void) requestUniqueFileFailed:(ASIHTTPRequest *) response {
     verifyLastFile ++;
     if (verifyLastFile == lastFile){
         [self stopIndicators];
@@ -536,12 +693,11 @@ static Device *mydevice = nil;
     files = uncertain;
 }
 #pragma mark XMLparser delegate methods
--(void)parserDidStartDocument:(NSXMLParser *)parser
-{
+-(void)parserDidStartDocument:(NSXMLParser *)parser {
 
 }
--(void)parser: (NSXMLParser *) parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName attributes:(NSDictionary *)attributeDict
-{
+-(void)parser: (NSXMLParser *) parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName attributes:(NSDictionary *)attributeDict {
+    NSLog(@"%@", elementName);
     
     if (![elementName isEqualToString:@"fileslist"] && ![elementName isEqualToString:@"shared"]) {
         if (!sharedFile){
@@ -576,196 +732,222 @@ static Device *mydevice = nil;
     NSLog(@"Files parser - Errors in parsing: %@", [parseError description]);
     
 }
--(void) parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName
-{
+-(void) parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName {
     if ([elementName isEqualToString:@"shared"])
     {
         sharedFile = false;
     }
 }
-
-//Not used methods (yet!), included for testing purposes
-#pragma mark Encryption methods
--(SecKeyRef)getPublicKeyRef
-{ 
+#pragma mark Key and IV generation
+-(NSArray *) generateKeyAndIv {
     
-    OSStatus sanityCheck = noErr; 
+    //Get date to use as KEY and IV
+    NSDateFormatter* dateFormatter = [[NSDateFormatter alloc] init];
+    [dateFormatter setDateStyle:NSDateFormatterMediumStyle]; 
+    [dateFormatter setTimeStyle:NSDateFormatterMediumStyle];
+    NSString *dateString = [dateFormatter stringFromDate:[NSDate date]];
+    [dateFormatter release];
+    
+    NSString *fullText = [[[NSString stringWithString:dateString] stringByAppendingString:dateString] stringByAppendingString:[self generateRandomNumberMaxValue:999999]];
+    
+    //Compute KEY
+    NSString *key = [NSString stringWithString:[[KeychainWrapper computeSHA256DigestForString:fullText] substringWithRange:NSMakeRange(0, 16)]];
+    NSString *iv = [NSString stringWithString:[[KeychainWrapper computeSHA256DigestForString:fullText] substringWithRange:NSMakeRange(16, 16)]];
+    
+    NSArray *encryptionCredentials =[NSArray arrayWithObjects:key,iv, nil];
+    return encryptionCredentials;
+}
+-(NSString *) generateRandomNumberMaxValue:(int)max {
+    int number = (arc4random()%max)+1; //Generates Number from 1 to 100.
+    NSString *string = [NSString stringWithFormat:@"%i", number];
+    return string;
+}
+//Not used methods (yet!), included for testing purposes
+#pragma mark Asymetric Encryption methods
+- (BOOL)addPublicKey:(NSString *)key withTag:(NSString *)tag {
+    NSString *s_key = [NSString string];
+    NSArray  *a_key = [key componentsSeparatedByString:@"\n"];
+    BOOL     f_key  = FALSE;
+    
+    for (NSString *a_line in a_key) {
+        if ([a_line isEqualToString:@"-----BEGIN PUBLIC KEY-----"]) {
+            f_key = TRUE;
+        }
+        else if ([a_line isEqualToString:@"-----END PUBLIC KEY-----"]) {
+            f_key = FALSE;
+        }
+        else if (f_key) {
+            s_key = [s_key stringByAppendingString:a_line];
+        }
+    }
+    if (s_key.length == 0) return(FALSE);
+    
+    // This will be base64 encoded, decode it.
+    NSData *d_key = [NSData dataFromBase64String:s_key];
+    d_key = [self stripPublicKeyHeader:d_key];
+    if (d_key == nil) return(FALSE);
+    
+    NSData *d_tag = [NSData dataWithBytes:[tag UTF8String] length:[tag length]];
+    publicTag = [NSData dataWithData:d_tag];
+    // Delete any old lingering key with the same tag
+    NSMutableDictionary *publicKey = [[NSMutableDictionary alloc] init];
+    [publicKey setObject:(id) kSecClassKey forKey:(id)kSecClass];
+    [publicKey setObject:(id) kSecAttrKeyTypeRSA forKey:(id)kSecAttrKeyType];
+    [publicKey setObject:d_tag forKey:(id)kSecAttrApplicationTag];
+    SecItemDelete((CFDictionaryRef)publicKey);
+    
+    CFTypeRef persistKey = nil;
+    
+    // Add persistent version of the key to system keychain
+    [publicKey setObject:d_key forKey:(id)kSecValueData];
+    [publicKey setObject:(id) kSecAttrKeyClassPublic forKey:(id)
+     kSecAttrKeyClass];
+    [publicKey setObject:[NSNumber numberWithBool:YES] forKey:(id)
+     kSecReturnPersistentRef];
+    
+    OSStatus secStatus = SecItemAdd((CFDictionaryRef)publicKey, &persistKey);
+    if (persistKey != nil) CFRelease(persistKey);
+    
+    if ((secStatus != noErr) && (secStatus != errSecDuplicateItem)) {
+        [publicKey release];
+        return(FALSE);
+    }
+    
+    // Now fetch the SecKeyRef version of the key
+    SecKeyRef keyRef = nil;
+    
+    [publicKey removeObjectForKey:(id)kSecValueData];
+    [publicKey removeObjectForKey:(id)kSecReturnPersistentRef];
+    [publicKey setObject:[NSNumber numberWithBool:YES] forKey:(id)kSecReturnRef
+     ];
+    [publicKey setObject:(id) kSecAttrKeyTypeRSA forKey:(id)kSecAttrKeyType];
+    secStatus = SecItemCopyMatching((CFDictionaryRef)publicKey,
+                                    (CFTypeRef *)&keyRef);
+    
+    [publicKey release];
+    
+    if (keyRef == nil) return(FALSE);
+    
+    // Add to our pseudo keychain
+    //[keyRefs addObject:[NSValue valueWithBytes:&keyRef objCType:@encode(SecKeyRef)]];
+    
+    return(TRUE);
+}
+- (NSData *)stripPublicKeyHeader:(NSData *)d_key {
+    // Skip ASN.1 public key header
+    if (d_key == nil) return(nil);
+    
+    unsigned int len = [d_key length];
+    if (!len) return(nil);
+    
+    unsigned char *c_key = (unsigned char *)[d_key bytes];
+    unsigned int  idx    = 0;
+    
+    if (c_key[idx++] != 0x30) return(nil);
+    
+    if (c_key[idx] > 0x80) idx += c_key[idx] - 0x80 + 1;
+    else idx++;
+    
+    // PKCS #1 rsaEncryption szOID_RSA_RSA
+    static unsigned char seqiod[] =
+    { 0x30,   0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
+        0x01, 0x05, 0x00 };
+    if (memcmp(&c_key[idx], seqiod, 15)) return(nil);
+    
+    idx += 15;
+    
+    if (c_key[idx++] != 0x03) return(nil);
+    
+    if (c_key[idx] > 0x80) idx += c_key[idx] - 0x80 + 1;
+    else idx++;
+    
+    if (c_key[idx++] != '\0') return(nil);
+    
+    // Now make a new NSData from this buffer
+    return([NSData dataWithBytes:&c_key[idx] length:len - idx]);
+}
+- (void)encryptWithPublicKey {
+    OSStatus status = noErr;
+    
+    size_t cipherBufferSize;
+    uint8_t *cipherBuffer;                     // 1
+    
+    // [cipherBufferSize]
+    const uint8_t nonce[] = "the quick brown fox jumps over the lazy dog\0"; // 2
+    
+    SecKeyRef publicKey = NULL;                                 // 3
+    
+    //NSData * publicTag = [NSData dataWithBytes:publicKeyIdentifier length:strlen((const char *)publicKeyIdentifier)]; // 4
+    
+    //NSMutableDictionary *queryPublicKey = [[NSMutableDictionary alloc] init]; // 5
+    
+    //[queryPublicKey setObject:(id)kSecClassKey forKey:(id)kSecClass];
+    //[queryPublicKey setObject:publicTag forKey:(id)kSecAttrApplicationTag];
+    //[queryPublicKey setObject:(id)kSecAttrKeyTypeRSA forKey:(id)kSecAttrKeyType];
+    //[queryPublicKey setObject:[NSNumber numberWithBool:YES] forKey:(id)kSecReturnRef];
+    // 6
+    
+    //status = SecItemCopyMatching ((CFDictionaryRef)queryPublicKey, (CFTypeRef *)&publicKey); // 7
+    
+    //  Allocate a buffer
+    
+    //cipherBufferSize = sizeof(publicKey);
+    cipherBuffer = malloc(1024);
+    
+    //  Error handling
+    
+    //if (cipherBufferSize < sizeof(nonce)) {
+        // Ordinarily, you would split the data up into blocks
+        // equal to cipherBufferSize, with the last block being
+        // shorter. For simplicity, this example assumes that
+        // the data is short enough to fit.
+    //    printf("Could not decrypt.  Packet too large.\n");
+    //    return;
+    //}
+    
+    // Encrypt using the public.
+    status = SecKeyEncrypt( [self getPublicKeyRef],
+                           kSecPaddingPKCS1,
+                           nonce,
+                           (size_t) sizeof(nonce)/sizeof(nonce[0]),
+                           cipherBuffer,
+                           &cipherBufferSize
+                           );                              // 8
+    NSLog(@"%@",[NSString stringWithUTF8String:(char *)cipherBuffer]);
+    
+    //  Error handling
+    //  Store or transmit the encrypted text
+    
+    if(publicKey) CFRelease(publicKey);
+    //if(queryPublicKey) [queryPublicKey release];                // 9
+    free(cipherBuffer);
+}
+- (SecKeyRef)getPublicKeyRef {
+    OSStatus sanityCheck = noErr;
     SecKeyRef publicKeyReference = NULL;
     
-    if (publicKeyReference == NULL) { 
-        [self generateKeyPair:512];
-        NSMutableDictionary *queryPublicKey = [[NSMutableDictionary alloc] init];
+    if (publicKeyRef == NULL) {
+        NSMutableDictionary * queryPublicKey = [[NSMutableDictionary alloc] init];
+        
         // Set the public key query dictionary.
-        [queryPublicKey setObject:(__bridge id)kSecClassKey forKey:(__bridge id)kSecClass];
-        [queryPublicKey setObject:publicTag forKey:(__bridge id)kSecAttrApplicationTag];
-        [queryPublicKey setObject:(__bridge id)kSecAttrKeyTypeRSA forKey:(__bridge id)kSecAttrKeyType];
-        [queryPublicKey setObject:[NSNumber numberWithBool:YES] forKey:(__bridge id)kSecReturnRef];
+        [queryPublicKey setObject:(id)kSecClassKey forKey:(id)kSecClass];
+        [queryPublicKey setObject:publicTag forKey:(id)kSecAttrApplicationTag];
+        [queryPublicKey setObject:(id)kSecAttrKeyTypeRSA forKey:(id)kSecAttrKeyType];
+        [queryPublicKey setObject:[NSNumber numberWithBool:YES] forKey:(id)kSecReturnRef];
+        
         // Get the key.
-        sanityCheck = SecItemCopyMatching((__bridge CFDictionaryRef)queryPublicKey, (CFTypeRef *)&publicKeyReference);
+        sanityCheck = SecItemCopyMatching((CFDictionaryRef)queryPublicKey, (CFTypeRef *)&publicKeyReference);
+        
         if (sanityCheck != noErr)
         {
             publicKeyReference = NULL;
         }
-        //        [queryPublicKey release];
-    } else { 
-        publicKeyReference = publicKey; }
+        
+        [queryPublicKey release];
+    } else {
+        publicKeyReference = publicKeyRef;
+    }
     
     return publicKeyReference;
-}
--(void)testAsymmetricEncryptionAndDecryption
-{
-    
-    uint8_t *plainBuffer;
-    uint8_t *cipherBuffer;
-    uint8_t *decryptedBuffer;
-    const char inputString[] = "Sample test to be encrypted";
-    int len = strlen(inputString);
-    // TODO: this is a hack since i know inputString length will be less than BUFFER_SIZE
-    if (len > BUFFER_SIZE) len = BUFFER_SIZE-1;
-    
-    plainBuffer = (uint8_t *)calloc(BUFFER_SIZE, sizeof(uint8_t));
-    cipherBuffer = (uint8_t *)calloc(CIPHER_BUFFER_SIZE, sizeof(uint8_t));
-    decryptedBuffer = (uint8_t *)calloc(BUFFER_SIZE, sizeof(uint8_t));
-    
-    strncpy( (char *)plainBuffer, inputString, len);
-    
-    NSLog(@"init() plainBuffer: %s", plainBuffer);
-    //NSLog(@"init(): sizeof(plainBuffer): %d", sizeof(plainBuffer));
-    [self encryptWithPublicKey:(UInt8 *)plainBuffer cipherBuffer:cipherBuffer];
-    NSLog(@"encrypted data: %s", cipherBuffer);
-    //NSLog(@"init(): sizeof(cipherBuffer): %d", sizeof(cipherBuffer));
-    [self decryptWithPrivateKey:cipherBuffer plainBuffer:decryptedBuffer];
-    NSLog(@"decrypted data: %s", decryptedBuffer);
-    //NSLog(@"init(): sizeof(decryptedBuffer): %d", sizeof(decryptedBuffer));
-    NSLog(@"====== /second test =======================================");
-    
-    free(plainBuffer);
-    free(cipherBuffer);
-    free(decryptedBuffer);
-}
--(void)encryptWithPublicKey:(uint8_t *)plainBuffer cipherBuffer:(uint8_t *)cipherBuffer
-{
-    
-    NSLog(@"== encryptWithPublicKey()");
-    
-    OSStatus status = noErr;
-    
-    NSLog(@"** original plain text 0: %s", plainBuffer);
-    
-    size_t plainBufferSize = strlen((char *)plainBuffer);
-    size_t cipherBufferSize = CIPHER_BUFFER_SIZE;
-    
-    NSLog(@"SecKeyGetBlockSize() public = %lu", SecKeyGetBlockSize([self getPublicKeyRef]));
-    //  Error handling
-    // Encrypt using the public.
-    status = SecKeyEncrypt([self getPublicKeyRef],
-                           PADDING,
-                           plainBuffer,
-                           plainBufferSize,
-                           &cipherBuffer[0],
-                           &cipherBufferSize
-                           );
-    NSLog(@"encryption result code: %ld (size: %lu)", status, cipherBufferSize);
-    NSLog(@"encrypted text: %s", cipherBuffer);
-}
-- (void)decryptWithPrivateKey:(uint8_t *)cipherBuffer plainBuffer:(uint8_t *)plainBuffer
-{
-    OSStatus status = noErr;
-    
-    size_t cipherBufferSize = strlen((char *)cipherBuffer);
-    
-    NSLog(@"decryptWithPrivateKey: length of buffer: %lu", BUFFER_SIZE);
-    NSLog(@"decryptWithPrivateKey: length of input: %lu", cipherBufferSize);
-    
-    // DECRYPTION
-    size_t plainBufferSize = BUFFER_SIZE;
-    
-    //  Error handling
-    status = SecKeyDecrypt([self getPrivateKeyRef],
-                           PADDING,
-                           &cipherBuffer[0],
-                           cipherBufferSize,
-                           &plainBuffer[0],
-                           &plainBufferSize
-                           );
-    NSLog(@"decryption result code: %ld (size: %lu)", status, plainBufferSize);
-    NSLog(@"FINAL decrypted text: %s", plainBuffer);
-    
-}
--(SecKeyRef)getPrivateKeyRef
-{
-    OSStatus resultCode = noErr;
-    SecKeyRef privateKeyReference = NULL;
-    //    NSData *privateTag = [NSData dataWithBytes:@"ABCD" length:strlen((const char *)@"ABCD")];
-    //    if(privateKey == NULL) {
-    [self generateKeyPair:512];
-    NSMutableDictionary * queryPrivateKey = [[NSMutableDictionary alloc] init];
-    
-    // Set the private key query dictionary.
-    [queryPrivateKey setObject:(__bridge id)kSecClassKey forKey:(__bridge id)kSecClass];
-    [queryPrivateKey setObject:privateTag forKey:(__bridge id)kSecAttrApplicationTag];
-    [queryPrivateKey setObject:(__bridge id)kSecAttrKeyTypeRSA forKey:(__bridge id)kSecAttrKeyType];
-    [queryPrivateKey setObject:[NSNumber numberWithBool:YES] forKey:(__bridge id)kSecReturnRef];
-    
-    // Get the key.
-    resultCode = SecItemCopyMatching((__bridge CFDictionaryRef)queryPrivateKey, (CFTypeRef *)&privateKeyReference);
-    NSLog(@"getPrivateKey: result code: %ld", resultCode);
-    
-    if(resultCode != noErr)
-    {
-        privateKeyReference = NULL;
-    }
-    
-    //        [queryPrivateKey release];
-    //    } else {
-    //        privateKeyReference = privateKey;
-    //    }
-    
-    return privateKeyReference;
-}
--(void)generateKeyPair:(NSUInteger)keySize
-{
-    OSStatus sanityCheck = noErr;
-    publicKey = NULL;
-    privateKey = NULL;
-    
-    //  LOGGING_FACILITY1( keySize == 512 || keySize == 1024 || keySize == 2048, @"%d is an invalid and unsupported key size.", keySize );
-    
-    // First delete current keys.
-    //  [self deleteAsymmetricKeys];
-    
-    // Container dictionaries.
-    NSMutableDictionary * privateKeyAttr = [[NSMutableDictionary alloc] init];
-    NSMutableDictionary * publicKeyAttr = [[NSMutableDictionary alloc] init];
-    NSMutableDictionary * keyPairAttr = [[NSMutableDictionary alloc] init];
-    
-    // Set top level dictionary for the keypair.
-    [keyPairAttr setObject:(__bridge id)kSecAttrKeyTypeRSA forKey:(__bridge id)kSecAttrKeyType];
-    [keyPairAttr setObject:[NSNumber numberWithUnsignedInteger:keySize] forKey:(__bridge id)kSecAttrKeySizeInBits];
-    
-    // Set the private key dictionary.
-    [privateKeyAttr setObject:[NSNumber numberWithBool:YES] forKey:(__bridge id)kSecAttrIsPermanent];
-    [privateKeyAttr setObject:privateTag forKey:(__bridge id)kSecAttrApplicationTag];
-    // See SecKey.h to set other flag values.
-    
-    // Set the public key dictionary.
-    [publicKeyAttr setObject:[NSNumber numberWithBool:YES] forKey:(__bridge id)kSecAttrIsPermanent];
-    [publicKeyAttr setObject:publicTag forKey:(__bridge id)kSecAttrApplicationTag];
-    // See SecKey.h to set other flag values.
-    
-    // Set attributes to top level dictionary.
-    [keyPairAttr setObject:privateKeyAttr forKey:(__bridge id)kSecPrivateKeyAttrs];
-    [keyPairAttr setObject:publicKeyAttr forKey:(__bridge id)kSecPublicKeyAttrs];
-    
-    // SecKeyGeneratePair returns the SecKeyRefs just for educational purposes.
-    sanityCheck = SecKeyGeneratePair((__bridge CFDictionaryRef)keyPairAttr, &publicKey, &privateKey);
-    //  LOGGING_FACILITY( sanityCheck == noErr && publicKey != NULL && privateKey != NULL, @"Something really bad went wrong with generating the key pair." );
-    if(sanityCheck == noErr  && publicKey != NULL && privateKey != NULL)
-    {
-        NSLog(@"Successful");
-    }
-    //  [privateKeyAttr release];
-    //  [publicKeyAttr release];
-    //  [keyPairAttr release];
 }
 @end

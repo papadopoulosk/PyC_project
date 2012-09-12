@@ -36,12 +36,18 @@ static const char encodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 - (NSString*)encryptString:(NSString*)string withKey:(NSString *) key andIV:(NSString *) IV
 {
     uint8_t *kKeyBytes =[key cStringUsingEncoding:NSASCIIStringEncoding];
+    uint8_t *kIvBytes = [IV cStringUsingEncoding:NSASCIIStringEncoding];
     if (symmetricKey!=nil){
         [symmetricKey release];
         symmetricKey = nil;
     }
+    if (iv != nil ) {
+        [iv release];
+        iv = nil;
+    }
     symmetricKey = [[NSData dataWithBytes:kKeyBytes length:16] retain];
-     
+    iv = [[NSData dataWithBytes:kIvBytes length:16] retain];
+    
 	NSRange fullRange;
 	fullRange.length = [string length];
 	fullRange.location = 0;
@@ -56,19 +62,74 @@ static const char encodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 	
 	return [self base64EncodeData:encryptedResponse];
 }
-
-- (NSString*)decryptString:(NSString*)string withKey:(NSString *) key andIV:(NSString *) IV
+- (NSData*)encryptData:(NSData*)data withKey:(NSString *) key andIV:(NSString *) IV
 {
     uint8_t *kKeyBytes =[key cStringUsingEncoding:NSASCIIStringEncoding];
+    uint8_t *kIvBytes = [IV cStringUsingEncoding:NSASCIIStringEncoding];
     if (symmetricKey!=nil){
         [symmetricKey release];
         symmetricKey = nil;
     }
+    if (iv != nil ) {
+        [iv release];
+        iv = nil;
+    }
     symmetricKey = [[NSData dataWithBytes:kKeyBytes length:16] retain];
+    iv = [[NSData dataWithBytes:kIvBytes length:16] retain];
+    
+	//NSRange fullRange;
+	//fullRange.length = [string length];
+	//fullRange.location = 0;
+	
+	//uint8_t buffer[[string length]];
+	
+	//[string getBytes:&buffer maxLength:[string length] usedLength:NULL encoding:NSUTF8StringEncoding options:0 range:fullRange remainingRange:NULL];
+	
+	//NSData *plainText = [NSData dataWithBytes:buffer length:[string length]];
+	
+	NSData *encryptedResponse = [self doCipher:data key:symmetricKey context:kCCEncrypt padding:&pad];
+	
+	return [NSData dataWithData:encryptedResponse];
+}
+
+- (NSString*)decryptString:(NSString*)string withKey:(NSString *) key andIV:(NSString *) IV
+{
+    uint8_t *kKeyBytes =[key cStringUsingEncoding:NSASCIIStringEncoding];
+    uint8_t *kIvBytes = [IV cStringUsingEncoding:NSASCIIStringEncoding];
+    if (symmetricKey!=nil){
+        [symmetricKey release];
+        symmetricKey = nil;
+    }
+    if (iv != nil ) {
+        [iv release];
+        iv = nil;
+    }
+    symmetricKey = [[NSData dataWithBytes:kKeyBytes length:16] retain];
+    iv = [[NSData dataWithBytes:kIvBytes length:16] retain];
     //NSLog(@"KEY %@", [symmetricKey description]);
 	
     NSData *decryptedResponse = [self doCipher:[self base64DecodeString:string] key:symmetricKey context:kCCDecrypt padding:&pad];
 	return [NSString stringWithCString:[decryptedResponse bytes] length:[decryptedResponse length]];
+}
+
+- (NSData*)decryptData:(NSData*)data withKey:(NSString *) key andIV:(NSString *) IV
+{
+    uint8_t *kKeyBytes =[key cStringUsingEncoding:NSASCIIStringEncoding];
+    uint8_t *kIvBytes = [IV cStringUsingEncoding:NSASCIIStringEncoding];
+    if (symmetricKey!=nil){
+        [symmetricKey release];
+        symmetricKey = nil;
+    }
+    if (iv != nil ) {
+        [iv release];
+        iv = nil;
+    }
+    symmetricKey = [[NSData dataWithBytes:kKeyBytes length:16] retain];
+    iv = [[NSData dataWithBytes:kIvBytes length:16] retain];
+    //NSLog(@"KEY %@", [symmetricKey description]);
+	
+    NSData *decryptedResponse = [self doCipher:data key:symmetricKey context:kCCDecrypt padding:&pad];
+	return [NSData dataWithData:decryptedResponse]; 
 }
 
 - (NSData *)doCipher:(NSData *)plainText key:(NSData *)theSymmetricKey context:(CCOperation)encryptOrDecrypt padding:(CCOptions *)pkcs7
@@ -94,8 +155,8 @@ static const char encodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 	uint8_t * ptr;
 	
 	// Initialization vector; dummy in this case 0's.
-	uint8_t iv[kCCBlockSizeAES128];
-	memset((void *) iv, 0x0, (size_t) sizeof(iv));
+	//uint8_t iv[kCCBlockSizeAES128];
+	//memset((void *) iv, 0x0, (size_t) sizeof(iv));
 	
 	LOGGING_FACILITY(plainText != nil, @"PlainText object cannot be nil." );
 	LOGGING_FACILITY(theSymmetricKey != nil, @"Symmetric key object cannot be nil." );
@@ -125,7 +186,7 @@ static const char encodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 	{
 		LOGGING_FACILITY1( 0, @"Invalid CCOperation parameter [%d] for cipher context.", *pkcs7 );
 	} 
-	
+    
 	// Create and Initialize the crypto reference.
 	ccStatus = CCCryptorCreate(	encryptOrDecrypt, 
 							   kCCAlgorithmAES128, 
@@ -334,6 +395,7 @@ static const char encodingTable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq
 	if(self = [super init])
 	{
         symmetricKey = nil;//[[NSData dataWithBytes:kKeyBytes length:sizeof(kKeyBytes)] retain];
+        iv = nil;
 	}
 	return self;
 }

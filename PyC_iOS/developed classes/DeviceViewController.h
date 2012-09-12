@@ -8,6 +8,8 @@
 #import <Foundation/Foundation.h>
 #import "Device.h"
 
+#import "AmazonClientManager.h"
+
 @interface DeviceViewController : UIViewController <CoreLocationControllerDelegate, UITableViewDataSource, UITableViewDelegate, busyIndicatorDelegate>
 {
     NSArray *labelsArray;

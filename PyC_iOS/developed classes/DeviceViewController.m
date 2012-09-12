@@ -72,9 +72,9 @@
     [myphone log];
 }
 -(IBAction)uploadLog
-{
-    [myphone uploadFiles];
-  //  [myphone uploadLog];    
+{    
+   [myphone uploadFiles];
+   // [myphone restoreFiles];
 }
 
 -(void) locationUpdate:(CLLocation *)location

@@ -9,6 +9,7 @@
 #import <UIKit/UIKit.h>
 #import <MapKit/MapKit.h>
 #import "Device.h"
+#import "GpsPins.h"
 
 #define METERS_PER_MILE 1609.344
 
@@ -16,7 +17,9 @@
 {
     MKMapView *_mapView;
     Device *myphone;
+    NSArray *pinsCoordinates;
 }
 @property (weak, nonatomic) IBOutlet MKMapView *_mapView;
 -(void) updateRegion:(NSDictionary *)safeZone;
+-(void) createDummyCoordinates;
 @end
